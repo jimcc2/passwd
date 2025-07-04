@@ -55,8 +55,8 @@ loginForm.addEventListener('submit', (e) => {
     const password = passwordInput.value;
     loginError.textContent = '';
 
-    // Check if we are in "unlock" or "login" mode
-    const isUnlockMode = usernameField.style.display === 'none';
+    // Check if we are in "unlock" or "login" mode by checking the button text
+    const isUnlockMode = loginButton.textContent === 'Unlock';
 
     if (isUnlockMode) {
         chrome.runtime.sendMessage({ message: 'unlock', password }, (response) => {
@@ -208,6 +208,7 @@ function showLoginView() {
     credentialsView.style.display = 'none';
     addCredentialView.style.display = 'none';
     usernameField.style.display = 'block';
+    document.getElementById('username').required = true;
     loginButton.textContent = 'Login';
 }
 
@@ -216,6 +217,7 @@ function showUnlockView() {
     credentialsView.style.display = 'none';
     addCredentialView.style.display = 'none';
     usernameField.style.display = 'none';
+    document.getElementById('username').required = false;
     loginButton.textContent = 'Unlock';
 }
 

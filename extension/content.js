@@ -35,6 +35,10 @@ const mfaSelectors = [
 
 // Listen for messages from the popup/background
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (chrome.runtime.lastError) {
+        console.warn("Content script message listener error:", chrome.runtime.lastError.message);
+        return;
+    }
     if (request.message === 'fill_credential') {
         fillLoginForm(request.credential);
         sendResponse({ status: 'success' });
@@ -52,6 +56,10 @@ document.addEventListener('focusin', (event) => {
         chrome.runtime.sendMessage(
             { message: 'get_credentials_for_url', url: window.location.href },
             (response) => {
+                if (chrome.runtime.lastError) {
+                    console.warn("Could not get credentials:", chrome.runtime.lastError.message);
+                    return;
+                }
                 if (response && response.credentials && response.credentials.length > 0) {
                     showCredentialSelector(response.credentials, target);
                 }
@@ -70,6 +78,10 @@ const mfaObserver = new MutationObserver((mutations, obs) => {
         chrome.runtime.sendMessage(
             { message: 'get_mfa_for_url', url: window.location.href },
             (response) => {
+                if (chrome.runtime.lastError) {
+                    console.warn("Could not get MFA:", chrome.runtime.lastError.message);
+                    return;
+                }
                 if (response && response.totp) {
                     console.log("Filling MFA code and submitting.");
                     const event = new Event('input', { bubbles: true });

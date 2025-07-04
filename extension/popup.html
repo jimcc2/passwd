@@ -4,15 +4,15 @@
     <title>Password Manager</title>
     <style>
         body { font-family: sans-serif; width: 300px; padding: 10px; }
-        .view { display: none; }
-        #login-view, #credentials-view { display: block; }
+        .view { display: none; } /* All views hidden by default */
         .credential-item { border-bottom: 1px solid #ccc; padding: 5px 0; }
         .credential-item button { margin-left: 10px; flex-shrink: 0; }
         .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-    <div id="login-view" class="view">
+    <!-- JS will determine which view to show on load -->
+    <div id="login-view" class="view" style="display: block;">
         <h2>Login</h2>
         <form id="login-form">
             <div id="username-field">

@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Read database configuration
 config = configparser.ConfigParser()
-config.read(os.path.join(BASE_DIR, '..', 'config', 'database.ini'))
+config.read(os.path.join(BASE_DIR, '..', 'config', 'database.ini'), encoding='utf-8')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/

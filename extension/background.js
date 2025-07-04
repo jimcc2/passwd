@@ -1,4 +1,10 @@
-const API_URL = 'http://127.0.0.1:8000/api';
+const DEFAULT_API_URL = 'http://127.0.0.1:8000/api';
+
+// Helper to get the configured API URL, with a fallback to the default.
+async function getApiUrl() {
+    const result = await chrome.storage.sync.get('apiUrl');
+    return result.apiUrl || DEFAULT_API_URL;
+}
 
 // In-memory session key. This is an CryptoKey object.
 let sessionCryptoKey = null;
@@ -40,9 +46,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 async function handleLogin(username, password, sendResponse) {
+    const apiUrl = await getApiUrl();
     // --- Online-First Path ---
     try {
-        const response = await fetch(`${API_URL}/token/`, {
+        const response = await fetch(`${apiUrl}/token/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
@@ -142,8 +149,9 @@ async function handleGetTotp(credentialId, sendResponse) {
         sendResponse({ error: 'Not logged in' });
         return;
     }
+    const apiUrl = await getApiUrl();
     try {
-        const response = await fetch(`${API_URL}/credentials/${credentialId}/totp/`, {
+        const response = await fetch(`${apiUrl}/credentials/${credentialId}/totp/`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) throw new Error('Failed to fetch TOTP');
@@ -220,7 +228,8 @@ function getToken() {
 }
 
 async function fetchAllCredentials(token) {
-    const response = await fetch(`${API_URL}/credentials/`, {
+    const apiUrl = await getApiUrl();
+    const response = await fetch(`${apiUrl}/credentials/`, {
         headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!response.ok) throw new Error('Failed to fetch credentials');
