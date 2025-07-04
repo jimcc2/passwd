@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Password Manager</title>
+    <style>
+        body { font-family: sans-serif; width: 300px; padding: 10px; }
+        .view { display: none; }
+        #login-view, #credentials-view { display: block; }
+        .credential-item { border-bottom: 1px solid #ccc; padding: 5px 0; }
+        .credential-item button { margin-left: 10px; flex-shrink: 0; }
+        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div id="login-view" class="view">
+        <h2>Login</h2>
+        <form id="login-form">
+            <div id="username-field">
+                <input type="text" id="username" name="username" placeholder="Username" required style="width: 95%; margin-bottom: 5px;">
+            </div>
+            <input type="password" id="password" name="password" placeholder="Password" required style="width: 95%; margin-bottom: 5px;">
+            <button type="submit">Login</button>
+        </form>
+        <p id="login-error" style="color:red;"></p>
+    </div>
+
+    <div id="credentials-view" class="view" style="display:none;">
+        <div class="header-actions">
+            <h2>Your Credentials</h2>
+            <button id="sync-btn">Sync Now</button>
+        </div>
+        <input type="text" id="search-box" placeholder="Search..." style="width: 95%; margin-bottom: 10px;">
+        <div id="credentials-list" style="max-height: 250px; overflow-y: auto;"></div>
+        <button id="add-new-btn" style="margin-top: 10px;">Add New</button>
+        <button id="logout-btn" style="margin-top: 10px;">Logout & Lock</button>
+    </div>
+
+    <div id="add-credential-view" class="view" style="display:none;">
+        <h2>Add New Credential</h2>
+        <form id="add-credential-form">
+            <input type="text" id="add-website" placeholder="Website URL" required style="width: 95%; margin-bottom: 5px;"><br>
+            <input type="text" id="add-username" placeholder="Username" required style="width: 95%; margin-bottom: 5px;"><br>
+            <input type="password" id="add-password" placeholder="Password" required style="width: 95%; margin-bottom: 5px;"><br>
+            <input type="text" id="add-mfa" placeholder="MFA Secret (optional)" style="width: 95%; margin-bottom: 5px;"><br>
+            <button type="submit">Save</button>
+            <button type="button" id="cancel-add-btn">Cancel</button>
+        </form>
+        <p id="add-error" style="color:red;"></p>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

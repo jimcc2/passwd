@@ -1,0 +1,7 @@
+django
+djangorestframework
+mysql-connector-python
+PyJWT
+cryptography
+pyotp
+django-cors-headers
