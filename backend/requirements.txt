@@ -1,7 +1,7 @@
-django
+Django
 djangorestframework
 mysql-connector-python
-PyJWT
-cryptography
-pyotp
 django-cors-headers
+djangorestframework-simplejwt
+pyotp
+gunicorn
