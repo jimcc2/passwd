@@ -17,14 +17,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the entire backend directory into the container at /app
 COPY ./backend /app/
 
-# The config file is outside the backend directory, so it won't be copied by the above line.
-# We will mount it as a volume in docker-compose instead of copying it,
-# to allow for external configuration.
+# Copy the entrypoint script into the container
+COPY ./entrypoint.sh /app/
+
+# Make the entrypoint script executable
+RUN chmod +x /app/entrypoint.sh
 
 # Expose the port the app runs on
 EXPOSE 8000
 
-# Run gunicorn
-# It will look for the wsgi.py file in the password_manager directory
-# The user will need to run migrations manually or we can add a startup script.
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "password_manager.wsgi:application"]
+# Set the entrypoint script to be executed when the container starts
+ENTRYPOINT ["/app/entrypoint.sh"]
