@@ -5,3 +5,5 @@ django-cors-headers
 djangorestframework-simplejwt
 pyotp
 gunicorn
+cryptography
+whitenoise

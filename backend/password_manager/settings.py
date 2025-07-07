@@ -6,8 +6,21 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Read database configuration
-config = configparser.ConfigParser()
-config.read(os.path.join(BASE_DIR, '..', 'config', 'database.ini'), encoding='utf-8')
+# Allow '##' for inline comments in the .ini file
+config = configparser.ConfigParser(inline_comment_prefixes=('##',))
+# The BASE_DIR is /app, and the config is mounted at /app/config
+config_path = os.path.join(BASE_DIR, 'config', 'database.ini')
+
+# Manually read the file with 'utf-8-sig' and then parse it as a string.
+# This is more robust against file encoding issues and BOMs.
+try:
+    with open(config_path, 'r', encoding='utf-8-sig') as f:
+        config_string = f.read()
+    config.read_string(config_string)
+except FileNotFoundError:
+    print(f"ERROR: Configuration file not found at {config_path}")
+    # Exit or handle appropriately
+    exit(1)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -38,6 +51,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -117,6 +131,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+# This is the directory where Django will collect all static files
+# from all apps into a single place for deployment.
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

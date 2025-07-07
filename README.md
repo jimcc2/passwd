@@ -34,3 +34,9 @@ content.js: “注入”到用户浏览的网页中的脚本。它负责检测�
 crypto.js: （虽然我们最终未使用文件，但其功能已由background.js中的Web Crypto API替代）负责前端的加密解密逻辑，确保用户主密码和凭据在本地的安全性。
 
 安装步骤：
+容器构建：
+docker build -t password-manager-backend .
+运行：
+docker run -d --rm -p 8000:8000 -v "%cd%/config:/app/config" -e ADMIN_USER=admin -e ADMIN_PASSWORD=password --name pm-backend password-manager-backend
+
+虚拟机：
