@@ -29,6 +29,7 @@
             <h2>Your Credentials</h2>
             <button id="sync-btn">Sync Now</button>
         </div>
+        <div id="sync-status" style="color:red; margin-bottom: 5px;"></div>
         <input type="text" id="search-box" placeholder="Search..." style="width: 95%; margin-bottom: 10px;">
         <div id="credentials-list" style="max-height: 250px; overflow-y: auto;"></div>
         <button id="add-new-btn" style="margin-top: 10px;">Add New</button>
@@ -41,7 +42,10 @@
             <input type="text" id="add-website" placeholder="Website URL" required style="width: 95%; margin-bottom: 5px;"><br>
             <input type="text" id="add-username" placeholder="Username" required style="width: 95%; margin-bottom: 5px;"><br>
             <input type="password" id="add-password" placeholder="Password" required style="width: 95%; margin-bottom: 5px;"><br>
-            <input type="text" id="add-mfa" placeholder="MFA Secret (optional)" style="width: 95%; margin-bottom: 5px;"><br>
+            <div style="display: flex; align-items: center; width: 100%;">
+                <input type="text" id="add-mfa" placeholder="MFA Secret (optional)" style="flex-grow: 1; margin-bottom: 5px;">
+                <button type="button" id="scan-qr-btn" style="margin-left: 5px; margin-bottom: 5px;">Scan QR</button>
+            </div>
             <button type="submit">Save</button>
             <button type="button" id="cancel-add-btn">Cancel</button>
         </form>

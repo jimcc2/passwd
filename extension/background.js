@@ -1,4 +1,5 @@
 const DEFAULT_API_URL = 'http://127.0.0.1:8000/api';
+let offscreenDocumentPath = 'offscreen.html';
 
 // Helper to get the configured API URL, with a fallback to the default.
 async function getApiUrl() {
@@ -11,28 +12,29 @@ let sessionCryptoKey = null;
 let cachedDecryptedCredentials = [];
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.message === 'login') {
-        handleLogin(request.username, request.password, sendResponse);
-    } else if (request.message === 'unlock') {
-        handleUnlock(request.password, sendResponse);
-    } else if (request.message === 'is_key_set') {
-        sendResponse({ status: !!sessionCryptoKey });
-    } else if (request.message === 'get_cached_credentials') {
-        sendResponse({ credentials: cachedDecryptedCredentials });
-    } else if (request.message === 'logout') {
-        handleLogout();
-    } else if (request.message === 'get_credentials_for_url') {
-        handleGetCredentialsForUrl(request.url, sendResponse);
-    } else if (request.message === 'get_mfa_for_url') {
-        handleGetMfaForUrl(request.url, sendResponse);
-    } else if (request.message === 'initiate_fill') {
-        handleInitiateFill(request.credential);
-    } else if (request.message === 'get_totp') {
-        handleGetTotp(request.credentialId, sendResponse);
-    } else if (request.message === 'sync_now') {
-        syncWithServer();
+    if (request.target === 'offscreen') {
+        return;
     }
-    return true;
+
+    const actions = {
+        'login': (req, res) => handleLogin(req.username, req.password, res),
+        'unlock': (req, res) => handleUnlock(req.password, res),
+        'get_session_status': (req, res) => handleGetSessionStatus(res),
+        'get_cached_credentials': (req, res) => res({ credentials: cachedDecryptedCredentials }),
+        'logout': handleLogout,
+        'get_credentials_for_url': (req, res) => handleGetCredentialsForUrl(req.url, res),
+        'get_mfa_for_url': (req, res) => handleGetMfaForUrl(req.url, res),
+        'initiate_fill': (req) => handleInitiateFill(req.credential),
+        'get_totp': (req, res) => handleGetTotp(req.credentialId, res),
+        'sync_now': (req, res) => syncWithServer(res),
+        'scan-qr-code': (req) => handleScanQRCode(req)
+    };
+
+    const action = actions[request.type] || actions[request.message];
+    if (action) {
+        action(request, sendResponse);
+        return true;
+    }
 });
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -41,13 +43,20 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'sync_alarm') {
-        syncWithServer();
+        syncWithServer(); // This sync is silent, no sendResponse
     }
 });
 
+async function handleGetSessionStatus(sendResponse) {
+    const token = await getToken();
+    sendResponse({
+        isUnlocked: !!sessionCryptoKey,
+        isLoggedIn: !!token
+    });
+}
+
 async function handleLogin(username, password, sendResponse) {
     const apiUrl = await getApiUrl();
-    // --- Online-First Path ---
     try {
         const response = await fetch(`${apiUrl}/token/`, {
             method: 'POST',
@@ -56,7 +65,6 @@ async function handleLogin(username, password, sendResponse) {
         });
 
         if (response.ok) {
-            // Online login successful
             const data = await response.json();
             await chrome.storage.local.set({ token: data.access });
             await setSessionKey(password);
@@ -65,27 +73,22 @@ async function handleLogin(username, password, sendResponse) {
             sendResponse({ success: true });
             return;
         }
-        // If response is not ok, fall through to offline login
     } catch (error) {
-        // Network error, fall through to offline login
         console.log("Online login failed, attempting offline unlock.", error.message);
     }
 
-    // --- Offline Fallback Path ---
     try {
         console.log("Attempting offline unlock...");
         const result = await chrome.storage.local.get('encrypted_vault');
         if (result.encrypted_vault) {
-            await setSessionKey(password); // Set key first
-            const decrypted = await decryptVault(result.encrypted_vault); // Then try to decrypt
+            await setSessionKey(password);
+            const decrypted = await decryptVault(result.encrypted_vault);
             cachedDecryptedCredentials = decrypted;
             sendResponse({ success: true, mode: 'offline' });
         } else {
-            // Offline and no local vault, login is impossible.
             sendResponse({ success: false, error: 'Offline, and no local data found.' });
         }
     } catch (e) {
-        // Decryption failed, so password was wrong.
         sessionCryptoKey = null;
         cachedDecryptedCredentials = [];
         sendResponse({ success: false, error: 'Invalid password.' });
@@ -100,7 +103,7 @@ async function handleUnlock(password, sendResponse) {
             const decrypted = await decryptVault(result.encrypted_vault);
             cachedDecryptedCredentials = decrypted;
             sendResponse({ success: true });
-            syncWithServer();
+            syncWithServer(); // Fire-and-forget sync
         } else {
             throw new Error("No local vault found.");
         }
@@ -112,8 +115,6 @@ async function handleUnlock(password, sendResponse) {
 }
 
 function handleLogout() {
-    // "Logout" now just means locking the vault and clearing the session.
-    // The encrypted vault remains for offline login.
     sessionCryptoKey = null;
     cachedDecryptedCredentials = [];
     chrome.storage.local.remove(['token']);
@@ -173,18 +174,27 @@ function handleInitiateFill(credential) {
     });
 }
 
-async function syncWithServer() {
+async function syncWithServer(sendResponse) {
     const token = await getToken();
-    if (!token || !sessionCryptoKey) return;
+    if (!token || !sessionCryptoKey) {
+        if (sendResponse) sendResponse({ success: false, error: 'Not logged in or vault locked.' });
+        return;
+    }
+
     try {
         const credentials = await fetchAllCredentials(token);
         await updateLocalVault(credentials);
+        if (sendResponse) sendResponse({ success: true });
+        // Also notify popup if it's open
+        chrome.runtime.sendMessage({ message: 'sync_status', status: 'Sync complete!', error: false }).catch(e => {});
     } catch (error) {
         console.error("Sync failed:", error);
+        const errorMessage = error.message || 'Unknown error';
+        if (sendResponse) sendResponse({ success: false, error: errorMessage });
+        chrome.runtime.sendMessage({ message: 'sync_status', status: `Sync failed: ${errorMessage}`, error: true }).catch(e => {});
     }
 }
 
-// --- Web Crypto API Functions ---
 
 async function setSessionKey(password) {
     const encoder = new TextEncoder();
@@ -200,9 +210,8 @@ async function updateLocalVault(credentials) {
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const encryptedData = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, sessionCryptoKey, data);
     
-    // Store IV and data together
     const encryptedVault = {
-        iv: Array.from(iv), // Convert Uint8Array to array for JSON serialization
+        iv: Array.from(iv),
         data: Array.from(new Uint8Array(encryptedData))
     };
 
@@ -218,8 +227,6 @@ async function decryptVault(encryptedVault) {
     const jsonString = decoder.decode(decrypted);
     return JSON.parse(jsonString);
 }
-
-// --- Helpers ---
 
 function getToken() {
     return new Promise(resolve => {
@@ -253,5 +260,36 @@ function filterCredentialsByUrl(credentials, url) {
             const cleanSavedUrl = cred.website_url.replace(/^(https?:\/\/)?(www\.)?/, '');
             return cleanPageUrl.startsWith(cleanSavedUrl);
         }
+    });
+}
+
+// --- Offscreen Document Logic ---
+
+async function handleScanQRCode(request) {
+    await ensureOffscreenDocument();
+    chrome.runtime.sendMessage({
+        target: 'offscreen',
+        type: 'scan-qr-code',
+        data: request.data
+    });
+}
+
+async function hasOffscreenDocument() {
+    const existingContexts = await chrome.runtime.getContexts({
+        contextTypes: ['OFFSCREEN_DOCUMENT'],
+        documentUrls: [chrome.runtime.getURL(offscreenDocumentPath)]
+    });
+    return existingContexts.length > 0;
+}
+
+async function ensureOffscreenDocument() {
+    if (await hasOffscreenDocument()) {
+        return;
+    }
+
+    await chrome.offscreen.createDocument({
+        url: offscreenDocumentPath,
+        reasons: ['BLOBS'],
+        justification: 'QR code scanning requires a canvas to process image data.',
     });
 }
